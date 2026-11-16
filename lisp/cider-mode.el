@@ -1343,14 +1343,23 @@ namespace itself."
                    (cider-start-of-next-sexp 1)))))))
     out))
 
+(defun cider--search-forward-binding-form (end)
+  "Move past the next binding form head before END outside strings and comments.
+Return the new point, or nil if there is none."
+  (let (found)
+    (while (and (setq found (search-forward-regexp "(\\(ns\\_>\\|def\\|fn\\|for\\b\\|loop\\b\\|with-\\|do[a-z]+\\|\\([a-z]+-\\)?let\\b\\)"
+                                                   end 'noerror))
+                (save-match-data
+                  (save-excursion (nth 8 (syntax-ppss (match-beginning 0)))))))
+    found))
+
 (defun cider--parse-and-apply-locals (end &optional outer-locals)
   "Figure out local variables between point and END.
 A list of these variables is set as the `cider-locals' text property over
 the code where they are in scope.
 Optional argument OUTER-LOCALS is used to specify local variables defined
 before point."
-  (while (search-forward-regexp "(\\(ns\\_>\\|def\\|fn\\|for\\b\\|loop\\b\\|with-\\|do[a-z]+\\|\\([a-z]+-\\)?let\\b\\)"
-                                end 'noerror)
+  (while (cider--search-forward-binding-form end)
     (goto-char (match-beginning 0))
     (let ((sym (match-string 1))
           ;; The regexp only captures the `def' prefix, so read the full
@@ -1361,10 +1370,11 @@ before point."
                     (forward-char 1)
                     (buffer-substring-no-properties
                      (point) (progn (forward-sexp 1) (point))))))
-          (sexp-end (save-excursion
-                      (or (ignore-errors (forward-sexp 1)
-                                         (point))
-                          end))))
+          (sexp-end (max (1+ (point))
+                         (save-excursion
+                           (or (ignore-errors (forward-sexp 1)
+                                              (point))
+                               end)))))
       ;; #1324: Don't do dynamic font-lock in `ns' forms, they are special
       ;; macros where nothing is evaluated, so we'd get a lot of false
       ;; positives.

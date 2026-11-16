@@ -185,6 +185,20 @@
       (search-forward "(+ a b)")
       (let ((locals (get-text-property (1- (point)) 'cider-locals)))
         (expect locals :to-contain "a")
-        (expect locals :to-contain "b")))))
+        (expect locals :to-contain "b"))))
+
+  (it "skips binding form heads inside docstrings"
+    (with-temp-buffer
+      (clojure-mode)
+      (insert "(defn doc-ns\n  \"Returns the symbol of an `(ns ...)` form.\"\n  [form]\n  (second form))")
+      (goto-char (point-min))
+      (cider--parse-and-apply-locals (point-max))
+      (goto-char (point-min))
+      (search-forward "`(ns")
+      (expect (get-text-property (- (point) 2) 'cider-block-dynamic-font-lock)
+              :not :to-be-truthy)
+      (search-forward "(second")
+      (expect (get-text-property (1- (point)) 'cider-locals)
+              :to-contain "form"))))
 
 ;;; cider-locals-tests.el ends here

@@ -117,6 +117,15 @@
       (expect (cider-mode-ts-tests--face-at "uuid")
               :not :to-equal 'font-lock-warning-face))))
 
+(describe "cider--parse-and-apply-locals in clojure-ts-mode"
+  (it "reads the arglist after an `(ns ...)` inside a docstring"
+    (with-clojure-ts-buffer "(defn doc-ns\n  \"Returns the symbol of an `(ns ...)` form.\"\n  [form]\n  (second form))"
+      (cider--parse-and-apply-locals (point-max))
+      (goto-char (point-min))
+      (search-forward "(second")
+      (expect (get-text-property (1- (point)) 'cider-locals)
+              :to-contain "form"))))
+
 (provide 'cider-mode-ts-tests)
 
 ;;; cider-mode-ts-tests.el ends here
